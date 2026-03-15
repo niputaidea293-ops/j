@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Buscador Cínico</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f7f8;
+        --panel: #ffffff;
+        --text: #1f1f1f;
+        --muted: #6e6e73;
+        --accent: #1a73e8;
+        --border: #dadce0;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #131314;
+          --panel: #1e1f20;
+          --text: #e8eaed;
+          --muted: #9aa0a6;
+          --accent: #8ab4f8;
+          --border: #3c4043;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Arial, Helvetica, sans-serif;
+        padding: 1.25rem;
+      }
+
+      .container {
+        width: min(760px, 100%);
+        display: grid;
+        gap: 1.2rem;
+      }
+
+      .logo {
+        font-size: clamp(2rem, 6vw, 3.5rem);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        text-align: center;
+      }
+
+      .logo span:nth-child(1) { color: #4285f4; }
+      .logo span:nth-child(2) { color: #ea4335; }
+      .logo span:nth-child(3) { color: #fbbc05; }
+      .logo span:nth-child(4) { color: #4285f4; }
+      .logo span:nth-child(5) { color: #34a853; }
+      .logo span:nth-child(6) { color: #ea4335; }
+
+      .search-wrap {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        padding: 0.35rem 0.4rem 0.35rem 1rem;
+        box-shadow: 0 1px 6px rgba(32, 33, 36, 0.12);
+      }
+
+      .search-wrap:focus-within {
+        border-color: var(--accent);
+        box-shadow: 0 2px 8px rgba(26, 115, 232, 0.2);
+      }
+
+      input[type="search"] {
+        width: 100%;
+        border: none;
+        outline: none;
+        background: transparent;
+        color: var(--text);
+        font-size: 1rem;
+        padding: 0.7rem 0.5rem;
+      }
+
+      button {
+        border: none;
+        border-radius: 999px;
+        background: var(--accent);
+        color: white;
+        font-weight: 600;
+        padding: 0.6rem 1rem;
+        cursor: pointer;
+      }
+
+      .hint {
+        font-size: 0.9rem;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .result {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1rem 1.1rem;
+        white-space: pre-wrap;
+        line-height: 1.55;
+        min-height: 90px;
+      }
+
+      .result.loading::before {
+        content: "Generando burla inteligente...";
+        color: var(--muted);
+      }
+
+      .warning {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <h1 class="logo" aria-label="Gemini">
+        <span>G</span><span>e</span><span>m</span><span>i</span><span>n</span><span>i</span>
+      </h1>
+
+      <form id="searchForm" class="search-wrap" autocomplete="off">
+        <input
+          id="query"
+          type="search"
+          placeholder="Busca cualquier cosa... si te atreves"
+          required
+        />
+        <button type="submit">Buscar</button>
+      </form>
+
+      <p class="hint">Parece un buscador normal, pero solo te va a trolear con estilo 🤖</p>
+      <section id="result" class="result" aria-live="polite"></section>
+      <p class="warning">Nota: la API key está embebida para acceso inmediato en frontend.</p>
+    </main>
+
+    <script>
+      const API_KEY = "AIzaSyDWYcb8zA6dco1K_QidJp2BXv0KU9UXfrw";
+      const MODEL = "gemini-1.5-flash";
+
+      const form = document.getElementById("searchForm");
+      const queryInput = document.getElementById("query");
+      const resultEl = document.getElementById("result");
+
+      async function askGemini(query) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
+
+        const body = {
+          systemInstruction: {
+            parts: [
+              {
+                text:
+                  "Eres un buscador sarcástico. Responde en español, con una burla juguetona y creativa sobre la búsqueda del usuario. No seas ofensivo con odio, discriminación ni amenazas. Máximo 5 líneas.",
+              },
+            ],
+          },
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: `Búsqueda: ${query}` }],
+            },
+          ],
+        };
+
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Error ${response.status}: ${errText}`);
+        }
+
+        const data = await response.json();
+        return (
+          data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+          "No encontré burla... algo salió raro en el multiverso."
+        );
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const query = queryInput.value.trim();
+        if (!query) return;
+
+        resultEl.classList.add("loading");
+        resultEl.textContent = "";
+
+        try {
+          const answer = await askGemini(query);
+          resultEl.textContent = answer;
+        } catch (error) {
+          resultEl.textContent = `No pude burlarme todavía: ${error.message}`;
+        } finally {
+          resultEl.classList.remove("loading");
+        }
+      });
+    </script>
+  </body>
+</html>
